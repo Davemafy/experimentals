@@ -120,7 +120,7 @@ Acceptance rule: **85/100 total, with at least 17/20 for identity, performance a
 
 ### Cost / deployment boundary
 
-The official [hosted ID-V2V model](https://fal.ai/models/fal-ai/id-v2v) is another way to test the same research approach **without** an approximately 96 GB local checkpoint download. The listing currently quotes **$0.20 per generated video-second** (subject to change). Using it would require separate authorization and provider credentials; this repository does not connect to it.
+The official [hosted ID-V2V model](https://fal.ai/models/fal-ai/id-v2v) is another way to test the same research approach **without** an approximately 96 GB local checkpoint download. The listing currently quotes **$0.20 per generated video-second** (subject to change). Using it requires separate authorization and provider credentials; this repository never initiates paid requests without explicit confirmation flags.
 
 No production deployment, hidden API key, model checkpoint or generated video is stored in this repository.
 
@@ -160,10 +160,10 @@ python3 hosted_idv2v_trial.py plan --scene golden_hour --workdir /path/to/workin
 After establishing a separate private `FAL_KEY` and installing `fal-client`, an authorized user can run:
 
 ```bash
-python3 hosted_idv2v_trial.py submit \\
-  --workdir /path/to/working-directory \\
-  --scene golden_hour \\
-  --maximum-estimate 1.00 \\
+python3 hosted_idv2v_trial.py submit \
+  --workdir /path/to/working-directory \
+  --scene golden_hour \
+  --maximum-estimate 1.00 \
   --allow-upload --allow-charge
 ```
 
