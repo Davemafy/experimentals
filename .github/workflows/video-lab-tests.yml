@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'generative_video_lab.py'
+      - 'hosted_idv2v_trial.py'
       - 'tests/**'
       - '.github/workflows/video-lab-tests.yml'
   workflow_dispatch:
@@ -68,6 +69,27 @@ jobs:
           assert report["framesDecoded"] == 48
           assert report["qualityPass"] is False
           assert "UNVERIFIED" in report["qualityNote"]
+          PY
+      - name: Validate hosted trial safely without charging
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile hosted_idv2v_trial.py
+          cp "$RUNNER_TEMP/lab/runs/golden_hour/source_frame0.png" "$RUNNER_TEMP/lab/runs/golden_hour/stylized_first_frame.png"
+          python hosted_idv2v_trial.py plan --workdir "$RUNNER_TEMP/lab/runs" --scene golden_hour
+          if python hosted_idv2v_trial.py submit --workdir "$RUNNER_TEMP/lab/runs" --scene golden_hour; then
+            echo "Unsafe: paid submission was not gated"
+            exit 1
+          fi
+          test ! -e "$RUNNER_TEMP/lab/runs/golden_hour/hosted-idv2v-trial.json"
+          python - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("hosted", "hosted_idv2v_trial.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert module.ENDPOINTS["golden_hour"] == "fal-ai/id-v2v/relight"
+          assert module.ENDPOINTS["silver_screen"] == "fal-ai/id-v2v/relight"
+          assert module.ENDPOINTS["neon_noir"] == "fal-ai/id-v2v"
           PY
       - name: Confirm test did not alter repository sources
         run: git diff --exit-code
