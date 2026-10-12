@@ -123,3 +123,58 @@ Acceptance rule: **85/100 total, with at least 17/20 for identity, performance a
 The official [hosted ID-V2V model](https://fal.ai/models/fal-ai/id-v2v) is another way to test the same research approach **without** an approximately 96 GB local checkpoint download. The listing currently quotes **$0.20 per generated video-second** (subject to change). Using it would require separate authorization and provider credentials; this repository does not connect to it.
 
 No production deployment, hidden API key, model checkpoint or generated video is stored in this repository.
+
+
+---
+
+## Hosted generative video trial — avoids a 96 GB local checkpoint download
+
+The separate `hosted_idv2v_trial.py` script can use [fal's hosted ID-V2V](https://fal.ai/models/fal-ai/id-v2v) and [ID-V2V Relight](https://fal.ai/models/fal-ai/id-v2v/relight), once the user separately authorizes provider billing. No connection or payment is automatically created.
+
+**Published rate:** $0.20 per output video-second (verify before submitting). At ~24 fps, 81 frames is about 3.4 seconds. The dry-run plan rounds up to four billable seconds (~$0.80) as a planning buffer. This is **not** a hard cap.
+
+### 1. Install edited reference frames privately
+
+Do **not** commit source video or edited frames to this public repository. Obtain the private reference bundle, upload it to the runtime, then extract the three matching scene folders into the existing workdir:
+
+```bash
+unzip -n /path/to/reference-bundle.zip -d /path/to/working-directory
+```
+
+Each `<workdir>/<scene>/stylized_first_frame.png` is an edited **image reference**, not a generated film. The `--source` preparation step in `generative_video_lab.py` supplies the original video, prompt and scene metadata.
+
+### 2. Preview the estimated charge — no API key or model download required
+
+```bash
+python3 hosted_idv2v_trial.py plan --scene golden_hour --workdir /path/to/working-directory
+```
+
+**One scene first**, at 81 frames, 720p. Default endpoint mapping:
+
+- `golden_hour` → `fal-ai/id-v2v/relight`: retain location, modify illumination.
+- `silver_screen` → `fal-ai/id-v2v/relight`: retain location, black-and-white sculpted light.
+- `neon_noir` → `fal-ai/id-v2v`: regenerate the scene while segmenting and conditioning on the performers.
+
+### 3. Submit a paid request — only with explicit authorization
+
+After establishing a separate private `FAL_KEY` and installing `fal-client`, an authorized user can run:
+
+```bash
+python3 hosted_idv2v_trial.py submit \\
+  --workdir /path/to/working-directory \\
+  --scene golden_hour \\
+  --maximum-estimate 1.00 \\
+  --allow-upload --allow-charge
+```
+
+This sends the original performance and edited reference image to a third-party provider, which may retain uploaded media subject to its terms. The script stores a local request record before submission to prevent accidental duplicate charges. The cost estimate threshold is a safety gate based on currently published pricing; **it does not enforce a billing ceiling**.
+
+### 4. Retrieve the same queued request
+
+```bash
+python3 hosted_idv2v_trial.py collect --scene golden_hour --workdir /path/to/working-directory
+```
+
+The result is saved as `hosted-generated-video.mp4`. Visual quality is unverified until the entire clip is reviewed. The script never modifies a production application, deploys a service, or substitutes grading for genuine video synthesis.
+
+**Status:** The host-specific model connection and billing have not been exercised here. Offline CI verifies that planning succeeds and submission is blocked without both authorization flags.
