@@ -100,13 +100,16 @@ def prepare(args):
             shutil.copy2(source, target)
         elif sha256(target) != sha256(source):
             raise RuntimeError(f"Existing source differs: {target}")
-        (p / "prompt.txt").write_text(scene["prompt"] + "\n")
-        (p / "reference_brief.txt").write_text(scene["reference_brief"] + "\n")
-        with (p / "scene.json").open("w") as f:
-            json.dump({"scene": name, "mode": scene["mode"],
-                       "sourceSha256": sha256(target), "source": details,
-                       "referenceRequired": "stylized_first_frame.png",
-                       "quality": "NOT TESTED"}, f, indent=2)
+        if not (p / "prompt.txt").exists():
+            (p / "prompt.txt").write_text(scene["prompt"] + "\n")
+        if not (p / "reference_brief.txt").exists():
+            (p / "reference_brief.txt").write_text(scene["reference_brief"] + "\n")
+        if not (p / "scene.json").exists():
+            with (p / "scene.json").open("w") as f:
+                json.dump({"scene": name, "mode": scene["mode"],
+                           "sourceSha256": sha256(target), "source": details,
+                           "referenceRequired": "stylized_first_frame.png",
+                           "quality": "NOT TESTED"}, f, indent=2)
         if not (p / "source_frame0.png").exists():
             run_checked(["ffmpeg", "-hide_banner", "-loglevel", "error",
                          "-i", target, "-frames:v", "1", "-y", p / "source_frame0.png"])
@@ -186,8 +189,14 @@ def render(args):
     image_details = run_checked(["ffprobe", "-v", "error", "-show_entries",
                                  "stream=width,height", "-of", "json",
                                  p / "stylized_first_frame.png"])
-    if not json.loads(image_details)["streams"]:
+    streams = json.loads(image_details)["streams"]
+    if not streams:
         raise ValueError("Cannot decode edited reference image")
+    dims = probe(p / "source.mp4")
+    ref_ratio = int(streams[0]["width"]) / int(streams[0]["height"])
+    source_ratio = dims["width"] / dims["height"]
+    if abs(ref_ratio / source_ratio - 1) > .08:
+        raise ValueError("Edited first frame has a different aspect ratio from the source")
     output = p / "outputs" / "trial_01"
     if output.exists() and any(output.iterdir()):
         raise RuntimeError("Trial output already exists; never overwrite generated evidence.")
