@@ -1,0 +1,73 @@
+name: Video lab smoke tests
+
+on:
+  push:
+    paths:
+      - 'generative_video_lab.py'
+      - 'tests/**'
+      - '.github/workflows/video-lab-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  cpu-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out experimental code
+        uses: actions/checkout@v4
+      - name: Install media tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+      - name: Install quality-check dependencies
+        run: |
+          python -m pip install --disable-pip-version-check "numpy>=1.24,<3" "opencv-python-headless>=4.8,<5"
+      - name: Validate parser and prepare synthetic footage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile generative_video_lab.py
+          mkdir -p "$RUNNER_TEMP/lab"
+          ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=size=640x360:rate=24 -t 2 -pix_fmt yuv420p "$RUNNER_TEMP/lab/source.mp4"
+          python generative_video_lab.py prepare --source "$RUNNER_TEMP/lab/source.mp4" --workdir "$RUNNER_TEMP/lab/runs"
+          python generative_video_lab.py status --workdir "$RUNNER_TEMP/lab/runs" --engine-root "$RUNNER_TEMP/no-engine"
+          python - <<'PY'
+          import json, os, pathlib
+          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "lab/runs"
+          for scene in ["golden_hour", "silver_screen", "neon_noir"]:
+              directory = root / scene
+              assert all((directory / f).is_file() for f in ["source.mp4", "source_frame0.png", "prompt.txt", "reference_brief.txt", "scene.json"])
+              data = json.loads((directory / "scene.json").read_text())
+              assert data["quality"] == "NOT TESTED"
+          assert json.loads((root / "neon_noir/scene.json").read_text())["mode"] == "restyle"
+          assert json.loads((root / "golden_hour/scene.json").read_text())["mode"] == "relight"
+          PY
+      - name: Confirm inference is blocked without explicit permission
+        shell: bash
+        run: |
+          set -euo pipefail
+          if python generative_video_lab.py render --workdir "$RUNNER_TEMP/lab/runs" --scene golden_hour; then
+            echo "Unsafe: inference ran without confirmation"
+            exit 1
+          fi
+          if python generative_video_lab.py render --confirm-gpu --engine-root "$RUNNER_TEMP/no-engine" --workdir "$RUNNER_TEMP/lab/runs" --scene golden_hour; then
+            echo "Unsafe: missing models did not block inference"
+            exit 1
+          fi
+      - name: Validate QA report without pretending fixture is AI output
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/lab/runs/golden_hour/outputs/trial_01"
+          cp "$RUNNER_TEMP/lab/source.mp4" "$RUNNER_TEMP/lab/runs/golden_hour/outputs/trial_01/generated_video.mp4"
+          python generative_video_lab.py evaluate --workdir "$RUNNER_TEMP/lab/runs" --scene golden_hour
+          python - <<'PY'
+          import json, os, pathlib
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "lab/runs/golden_hour/outputs/trial_01/quality-report.json"
+          report = json.loads(path.read_text())
+          assert report["framesDecoded"] == 48
+          assert report["qualityPass"] is False
+          assert "UNVERIFIED" in report["qualityNote"]
+          PY
+      - name: Confirm test did not alter repository sources
+        run: git diff --exit-code
