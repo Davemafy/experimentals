@@ -1,0 +1,37 @@
+# Python and development environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Local experiment outputs, videos and model assets
+outputs/
+results/
+artifacts/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+
+# Local keys and environment configuration
+.env
+.env.*
+*.token
+*.pem
+*.key
+*.log
+
+# Local model caches
+.cache/
+models/
+checkpoints/
