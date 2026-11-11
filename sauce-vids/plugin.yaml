@@ -1,0 +1,7 @@
+name: sauce-vids
+version: 0.1.0
+description: Capture real browser interactions and render product demos using approved local assets.
+provides_tools:
+  - sauce_capture
+  - sauce_render
+  - sauce_inspect
