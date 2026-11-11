@@ -5,3 +5,5 @@ provides_tools:
   - sauce_capture
   - sauce_render
   - sauce_inspect
+python_dependencies:
+  - "playwright>=1.55,<2"
