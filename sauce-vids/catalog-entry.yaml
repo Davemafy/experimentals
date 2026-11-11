@@ -1,6 +1,6 @@
 name: sauce-vids
 repo: https://github.com/Davemafy/experimentals
-sha: 84dec25677da8728b2444169904864433757c9f5
+sha: d89d6dcc8859bc26fa62f35d44ba4d54ba7f155c
 subdir: sauce-vids
 description: Capture genuine browser workflows and render product-demo footage with licensed local assets under Hermes direction.
 maintainer: Davemafy
